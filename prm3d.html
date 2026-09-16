@@ -104,7 +104,7 @@
         <button id="btnAdd">Add 100 Vertices</button>
         <button id="btnRestart" class="secondary">Restart Roadmap</button>
       </div>
-      <button id="btnGoal" class="secondary">New Random Goal</button>
+      <button id="btnGoal" class="secondary">New Random Goal (Keep Nodes)</button>
     </div>
 
     <!-- Blue Box Obstacle Position Controls -->
@@ -153,7 +153,7 @@
 
     <div class="control-group">
       <label class="checkbox-label">
-        <input type="checkbox" id="chkGraph" checked> Show PRM Graph Network
+        <input type="checkbox" id="chkGraph" checked> Show Nodes & Roadmap Edges
       </label>
     </div>
 
@@ -308,7 +308,7 @@
     }
 
     // --- Configuration Space Box Bounds ---
-    // Vertices are sampled randomly within a 3D rectangular box domain
+    // Vertices sampled inside rectangular box domain
     const CSPACE_BOX = {
       min: [-Math.PI, 0, -Math.PI / 2],
       max: [Math.PI, Math.PI, Math.PI / 2]
@@ -329,9 +329,18 @@
     let graph = [];
     let solvedPath = [];
 
+    const nodeSpheresGroup = new THREE.Group();
     const graphLinesGroup = new THREE.Group();
     const pathLineGroup = new THREE.Group();
-    scene.add(graphLinesGroup, pathLineGroup);
+    scene.add(nodeSpheresGroup, graphLinesGroup, pathLineGroup);
+
+    // Shared sphere geometry & materials for high node visibility
+    const nodeSphereGeo = new THREE.SphereGeometry(0.06, 12, 12);
+    const startGoalSphereGeo = new THREE.SphereGeometry(0.1, 16, 16);
+    const matFreeNode = new THREE.MeshPhongMaterial({ color: 0x22c55e, emissive: 0x115e2e });
+    const matCollisionNode = new THREE.MeshPhongMaterial({ color: 0xef4444, emissive: 0x7f1d1d });
+    const matStartNode = new THREE.MeshPhongMaterial({ color: 0x3b82f6, emissive: 0x1d4ed8 });
+    const matGoalNode = new THREE.MeshPhongMaterial({ color: 0xeab308, emissive: 0x854d0e });
 
     function distanceCSpace(a, b) {
       return Math.sqrt((a[0]-b[0])**2 + (a[1]-b[1])**2 + (a[2]-b[2])**2);
@@ -363,12 +372,32 @@
       
       graph = Array.from({ length: vertices.length }, () => []);
       
+      while(nodeSpheresGroup.children.length) nodeSpheresGroup.remove(nodeSpheresGroup.children[0]);
       while(graphLinesGroup.children.length) graphLinesGroup.remove(graphLinesGroup.children[0]);
       while(pathLineGroup.children.length) pathLineGroup.remove(pathLineGroup.children[0]);
 
-      const lineMat = new THREE.LineBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.15 });
+      const lineMat = new THREE.LineBasicMaterial({ color: 0x60a5fa, transparent: true, opacity: 0.35 });
       const linePositions = [];
 
+      // Re-render highly visible node spheres in 3D Workspace
+      if (showGraph) {
+        for (let i = 0; i < vertices.length; i++) {
+          const v = vertices[i];
+          const eePos = getKinematics(v.theta)[3];
+
+          let mat = v.free ? matFreeNode : matCollisionNode;
+          let geo = nodeSphereGeo;
+
+          if (i === 0) { mat = matStartNode; geo = startGoalSphereGeo; }
+          else if (i === 1) { mat = matGoalNode; geo = startGoalSphereGeo; }
+
+          const sphereMesh = new THREE.Mesh(geo, mat);
+          sphereMesh.position.copy(eePos);
+          nodeSpheresGroup.add(sphereMesh);
+        }
+      }
+
+      // Connect PRM Graph Edges
       for (let i = 0; i < vertices.length; i++) {
         if (!vertices[i].free) continue;
         for (let j = i + 1; j < vertices.length; j++) {
@@ -490,9 +519,21 @@
     // Button Listeners
     document.getElementById('btnAdd').addEventListener('click', () => addVertices(100));
     document.getElementById('btnRestart').addEventListener('click', resetRoadmap);
+    
+    // NEW GOAL: Keeps all existing sampled nodes, updates goal node (index 1), and recalculates graph
     document.getElementById('btnGoal').addEventListener('click', () => {
       goalState = sampleRandomConfigurationBox();
-      resetRoadmap();
+      if (vertices.length >= 2) {
+        vertices[1] = {
+          theta: goalState,
+          free: isStateCollisionFree(goalState),
+          id: 1
+        };
+      } else {
+        resetRoadmap();
+        return;
+      }
+      rebuildGraph();
     });
 
     document.getElementById('radSlider').addEventListener('input', (e) => {
