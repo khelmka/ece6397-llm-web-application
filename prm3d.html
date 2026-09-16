@@ -14,17 +14,17 @@
       overflow: hidden;
     }
     #sidebar {
-      width: 360px;
+      width: 380px;
       background: #25252d;
       border-right: 1px solid #33333f;
       display: flex;
       flex-direction: column;
-      padding: 20px;
-      gap: 16px;
+      padding: 18px;
+      gap: 14px;
       overflow-y: auto;
     }
-    h1 { font-size: 1.25rem; color: #ffffff; }
-    p.desc { font-size: 0.85rem; color: #a0a0b0; line-height: 1.4; }
+    h1 { font-size: 1.2rem; color: #ffffff; }
+    p.desc { font-size: 0.8rem; color: #a0a0b0; line-height: 1.35; }
     .control-group {
       background: #1a1a20;
       padding: 12px;
@@ -32,10 +32,10 @@
       border: 1px solid #2e2e38;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
     }
     .control-group label {
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -43,14 +43,21 @@
       display: flex;
       justify-content: space-between;
     }
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+    }
+    .slider-row label { width: 50px; font-weight: normal; text-transform: none; }
     .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     button {
       background: #3b82f6;
       color: #fff;
       border: none;
-      padding: 8px 12px;
+      padding: 8px 10px;
       border-radius: 4px;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       font-weight: 600;
       cursor: pointer;
       transition: background 0.2s;
@@ -59,19 +66,19 @@
     button.secondary { background: #374151; }
     button.secondary:hover { background: #4b5563; }
     input[type="range"] {
-      width: 100%;
+      flex: 1;
       accent-color: #3b82f6;
     }
     .checkbox-label {
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       color: #d1d5db;
       cursor: pointer;
     }
     #status {
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       padding: 8px;
       border-radius: 4px;
       background: #111827;
@@ -80,7 +87,6 @@
     #status.success { border-color: #10b981; color: #34d399; }
     #status.fail { border-color: #ef4444; color: #f87171; }
     #viewport { flex: 1; position: relative; }
-    canvas { width: 100%; height: 100%; display: block; }
   </style>
   <!-- Three.js and OrbitControls -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -90,15 +96,49 @@
 
   <div id="sidebar">
     <h1>3D PRM Motion Planning</h1>
-    <p class="desc">3-link articulated robot arm in 3D configuration space ($\theta_1, \theta_2, \theta_3$). Probabilistic roadmaps connect start and goal states around spherical obstacles.</p>
+    <p class="desc">3-link robot arm navigating around box-shaped obstacles. Vertices are sampled randomly inside a 3D bounding box configuration space.</p>
 
     <div class="control-group">
       <label>Roadmap Sampling</label>
       <div class="btn-grid">
         <button id="btnAdd">Add 100 Vertices</button>
-        <button id="btnRestart" class="secondary">Restart</button>
+        <button id="btnRestart" class="secondary">Restart Roadmap</button>
       </div>
       <button id="btnGoal" class="secondary">New Random Goal</button>
+    </div>
+
+    <!-- Blue Box Obstacle Position Controls -->
+    <div class="control-group">
+      <label style="color: #60a5fa;">Blue Obstacle Position</label>
+      <div class="slider-row">
+        <label>X: <span id="bXVal">0.6</span></label>
+        <input type="range" id="bXSlider" min="-2.0" max="2.0" step="0.1" value="0.6">
+      </div>
+      <div class="slider-row">
+        <label>Y: <span id="bYVal">1.4</span></label>
+        <input type="range" id="bYSlider" min="0.2" max="3.0" step="0.1" value="1.4">
+      </div>
+      <div class="slider-row">
+        <label>Z: <span id="bZVal">0.5</span></label>
+        <input type="range" id="bZSlider" min="-2.0" max="2.0" step="0.1" value="0.5">
+      </div>
+    </div>
+
+    <!-- Yellow Box Obstacle Position Controls -->
+    <div class="control-group">
+      <label style="color: #facc15;">Yellow Obstacle Position</label>
+      <div class="slider-row">
+        <label>X: <span id="yXVal">-0.5</span></label>
+        <input type="range" id="yXSlider" min="-2.0" max="2.0" step="0.1" value="-0.5">
+      </div>
+      <div class="slider-row">
+        <label>Y: <span id="yYVal">1.8</span></label>
+        <input type="range" id="yYSlider" min="0.2" max="3.0" step="0.1" value="1.8">
+      </div>
+      <div class="slider-row">
+        <label>Z: <span id="yZVal">-0.4</span></label>
+        <input type="range" id="yZSlider" min="-2.0" max="2.0" step="0.1" value="-0.4">
+      </div>
     </div>
 
     <div class="control-group">
@@ -113,10 +153,7 @@
 
     <div class="control-group">
       <label class="checkbox-label">
-        <input type="checkbox" id="chkCSpace"> Show C-Space Obstacles
-      </label>
-      <label class="checkbox-label">
-        <input type="checkbox" id="chkGraph" checked> Show PRM Graph
+        <input type="checkbox" id="chkGraph" checked> Show PRM Graph Network
       </label>
     </div>
 
@@ -126,7 +163,7 @@
   <div id="viewport"></div>
 
   <script>
-    // --- Setup Scene & Renderer ---
+    // --- Setup Three.js Context ---
     const container = document.getElementById('viewport');
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x1a1a20);
@@ -143,38 +180,49 @@
     controls.target.set(0, 1.5, 0);
     controls.update();
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-    scene.add(ambientLight);
+    // Lights & Grid
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
     dirLight.position.set(5, 10, 7);
-    dirLight.castShadow = true;
     scene.add(dirLight);
 
     const grid = new THREE.GridHelper(10, 20, 0x444455, 0x222233);
     scene.add(grid);
 
-    // --- Robot Arm Parameters ---
+    // --- Robot Specifications ---
     const L1 = 1.2, L2 = 1.0, L3 = 0.8;
-    const basePos = new THREE.Vector3(0, 0, 0);
 
-    // Obstacles in Workspace
-    const obsBlue = { pos: new THREE.Vector3(0.6, 1.4, 0.5), r: 0.55 };
-    const obsYellow = { pos: new THREE.Vector3(-0.5, 1.8, -0.4), r: 0.65 };
+    // --- Obstacle Boxes Data ---
+    const obsBlue = {
+      pos: new THREE.Vector3(0.6, 1.4, 0.5),
+      size: new THREE.Vector3(0.9, 0.9, 0.9),
+      mesh: null,
+      box3: new THREE.Box3()
+    };
+    const obsYellow = {
+      pos: new THREE.Vector3(-0.5, 1.8, -0.4),
+      size: new THREE.Vector3(1.1, 1.1, 1.1),
+      mesh: null,
+      box3: new THREE.Box3()
+    };
 
-    // Render Obstacles
-    function createSphereObs(obs, color) {
-      const geo = new THREE.SphereGeometry(obs.r, 32, 32);
-      const mat = new THREE.MeshPhongMaterial({ color: color, transparent: true, opacity: 0.8 });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.copy(obs.pos);
-      scene.add(mesh);
-      return mesh;
+    function createBoxObstacle(obs, color) {
+      const geo = new THREE.BoxGeometry(obs.size.x, obs.size.y, obs.size.z);
+      const mat = new THREE.MeshPhongMaterial({ color: color, transparent: true, opacity: 0.85 });
+      obs.mesh = new THREE.Mesh(geo, mat);
+      scene.add(obs.mesh);
+      updateObstacleBox(obs);
     }
-    createSphereObs(obsBlue, 0x3b82f6);
-    createSphereObs(obsYellow, 0xeab308);
 
-    // Render Robot Arm
+    function updateObstacleBox(obs) {
+      obs.mesh.position.copy(obs.pos);
+      obs.box3.setFromCenterAndSize(obs.pos, obs.size);
+    }
+
+    createBoxObstacle(obsBlue, 0x3b82f6);
+    createBoxObstacle(obsYellow, 0xeab308);
+
+    // --- Robot Visuals ---
     const armGroup = new THREE.Group();
     scene.add(armGroup);
 
@@ -183,7 +231,6 @@
     const matLink2 = new THREE.MeshPhongMaterial({ color: 0x10b981 });
     const matLink3 = new THREE.MeshPhongMaterial({ color: 0x8b5cf6 });
 
-    // Arm Meshes
     const meshBase = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 0.2, 16), matBase);
     meshBase.position.y = 0.1;
     armGroup.add(meshBase);
@@ -193,20 +240,16 @@
     const link3Mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, L3, 16), matLink3);
     armGroup.add(link1Mesh, link2Mesh, link3Mesh);
 
-    // Forward Kinematics & Collision Logic
+    // Forward Kinematics
     function getKinematics(theta) {
       const [t1, t2, t3] = theta;
       const p0 = new THREE.Vector3(0, 0.2, 0);
 
-      // Link 1 rotates around Y-axis, then pitches up by t2
       const dir1 = new THREE.Vector3(Math.cos(t2) * Math.cos(t1), Math.sin(t2), Math.cos(t2) * Math.sin(t1));
       const p1 = p0.clone().addScaledVector(dir1, L1);
 
-      // Link 2 adds t3 rotation
       const dir2 = new THREE.Vector3(Math.cos(t2 + t3) * Math.cos(t1), Math.sin(t2 + t3), Math.cos(t2 + t3) * Math.sin(t1));
       const p2 = p1.clone().addScaledVector(dir2, L2);
-
-      // Link 3 extends straight along dir2 for simplicity
       const p3 = p2.clone().addScaledVector(dir2, L3);
 
       return [p0, p1, p2, p3];
@@ -226,19 +269,27 @@
       setSegment(link3Mesh, p2, p3);
     }
 
-    function distSegmentSphere(a, b, sphere) {
-      const ab = b.clone().sub(a);
-      const ac = sphere.pos.clone().sub(a);
-      const t = Math.max(0, Math.min(1, ac.dot(ab) / ab.lengthSq()));
-      const closest = a.clone().addScaledVector(ab, t);
-      return closest.distanceTo(sphere.pos) < sphere.r;
+    // Line Segment to Axis-Aligned Bounding Box (AABB) Intersection Testing
+    function lineIntersectsBox(p1, p2, box) {
+      const ray = new THREE.Ray();
+      const dir = p2.clone().sub(p1);
+      const len = dir.length();
+      if (len === 0) return box.containsPoint(p1);
+      
+      dir.normalize();
+      ray.set(p1, dir);
+      
+      const target = new THREE.Vector3();
+      const hit = ray.intersectBox(box, target);
+      if (!hit) return false;
+      return p1.distanceTo(target) <= len;
     }
 
     function isStateCollisionFree(theta) {
       const pts = getKinematics(theta);
       for (let i = 0; i < 3; i++) {
-        if (distSegmentSphere(pts[i], pts[i+1], obsBlue)) return false;
-        if (distSegmentSphere(pts[i], pts[i+1], obsYellow)) return false;
+        if (lineIntersectsBox(pts[i], pts[i+1], obsBlue.box3)) return false;
+        if (lineIntersectsBox(pts[i], pts[i+1], obsYellow.box3)) return false;
       }
       return true;
     }
@@ -256,14 +307,28 @@
       return true;
     }
 
-    // --- PRM Algorithmic State ---
+    // --- Configuration Space Box Bounds ---
+    // Vertices are sampled randomly within a 3D rectangular box domain
+    const CSPACE_BOX = {
+      min: [-Math.PI, 0, -Math.PI / 2],
+      max: [Math.PI, Math.PI, Math.PI / 2]
+    };
+
+    function sampleRandomConfigurationBox() {
+      return [
+        CSPACE_BOX.min[0] + Math.random() * (CSPACE_BOX.max[0] - CSPACE_BOX.min[0]),
+        CSPACE_BOX.min[1] + Math.random() * (CSPACE_BOX.max[1] - CSPACE_BOX.min[1]),
+        CSPACE_BOX.min[2] + Math.random() * (CSPACE_BOX.max[2] - CSPACE_BOX.min[2])
+      ];
+    }
+
+    // --- PRM Roadmap State ---
     let startState = [0.2, 0.5, 0.3];
-    let goalState = [Math.PI * 0.8, 0.3, -0.6];
-    let vertices = []; // { theta, free, id }
-    let graph = [];    // Adjacency list
+    let goalState = [Math.PI * 0.7, 0.4, -0.5];
+    let vertices = [];
+    let graph = [];
     let solvedPath = [];
 
-    // Visualization Objects
     const graphLinesGroup = new THREE.Group();
     const pathLineGroup = new THREE.Group();
     scene.add(graphLinesGroup, pathLineGroup);
@@ -274,7 +339,7 @@
 
     function resetRoadmap() {
       vertices = [
-        { theta: startState, free: true, id: 0 },
+        { theta: startState, free: isStateCollisionFree(startState), id: 0 },
         { theta: goalState, free: isStateCollisionFree(goalState), id: 1 }
       ];
       rebuildGraph();
@@ -282,11 +347,7 @@
 
     function addVertices(count = 100) {
       for (let i = 0; i < count; i++) {
-        const theta = [
-          (Math.random() - 0.5) * Math.PI * 2,
-          Math.random() * Math.PI * 0.8,
-          (Math.random() - 0.5) * Math.PI
-        ];
+        const theta = sampleRandomConfigurationBox();
         vertices.push({
           theta: theta,
           free: isStateCollisionFree(theta),
@@ -302,14 +363,12 @@
       
       graph = Array.from({ length: vertices.length }, () => []);
       
-      // Clear Line Visualizations
       while(graphLinesGroup.children.length) graphLinesGroup.remove(graphLinesGroup.children[0]);
       while(pathLineGroup.children.length) pathLineGroup.remove(pathLineGroup.children[0]);
 
       const lineMat = new THREE.LineBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.15 });
       const linePositions = [];
 
-      // Connect Vertices within Radius
       for (let i = 0; i < vertices.length; i++) {
         if (!vertices[i].free) continue;
         for (let j = i + 1; j < vertices.length; j++) {
@@ -322,7 +381,6 @@
               graph[j].push({ node: i, weight: dist });
 
               if (showGraph) {
-                // Map to 3D workspace representation point (End-effector position)
                 const pA = getKinematics(vertices[i].theta)[3];
                 const pB = getKinematics(vertices[j].theta)[3];
                 linePositions.push(pA.x, pA.y, pA.z, pB.x, pB.y, pB.z);
@@ -341,7 +399,6 @@
       solveAStar();
     }
 
-    // --- A* Shortest Path Algorithm ---
     function solveAStar() {
       const start = 0, goal = 1;
       const dists = Array(vertices.length).fill(Infinity);
@@ -376,7 +433,6 @@
         }
       }
 
-      // Reconstruct Path
       solvedPath = [];
       let curr = goal;
       if (parent[curr] !== null || curr === start) {
@@ -386,7 +442,6 @@
         }
       }
 
-      // Update UI Status & Render Solution Path
       const statusEl = document.getElementById('status');
       if (solvedPath.length > 1) {
         statusEl.className = 'status success';
@@ -401,23 +456,42 @@
     function renderSolutionPath() {
       const points = [];
       for (const theta of solvedPath) {
-        const eePos = getKinematics(theta)[3];
-        points.push(eePos);
+        points.push(getKinematics(theta)[3]);
       }
       const geom = new THREE.BufferGeometry().setFromPoints(points);
       const mat = new THREE.LineBasicMaterial({ color: 0x10b981, linewidth: 3 });
       pathLineGroup.add(new THREE.Line(geom, mat));
     }
 
-    // --- Interaction Listeners ---
+    // --- Dynamic Obstacle Position Adjustments ---
+    function setupObstacleSlider(sliderId, valId, obsObj, coord) {
+      document.getElementById(sliderId).addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        document.getElementById(valId).innerText = val;
+        obsObj.pos[coord] = val;
+        updateObstacleBox(obsObj);
+        
+        // Re-evaluate existing nodes against new obstacle positions
+        for (let v of vertices) {
+          v.free = isStateCollisionFree(v.theta);
+        }
+        rebuildGraph();
+      });
+    }
+
+    setupObstacleSlider('bXSlider', 'bXVal', obsBlue, 'x');
+    setupObstacleSlider('bYSlider', 'bYVal', obsBlue, 'y');
+    setupObstacleSlider('bZSlider', 'bZVal', obsBlue, 'z');
+
+    setupObstacleSlider('yXSlider', 'yXVal', obsYellow, 'x');
+    setupObstacleSlider('yYSlider', 'yYVal', obsYellow, 'y');
+    setupObstacleSlider('yZSlider', 'yZVal', obsYellow, 'z');
+
+    // Button Listeners
     document.getElementById('btnAdd').addEventListener('click', () => addVertices(100));
-    document.getElementById('btnRestart').addEventListener('click', () => { resetRoadmap(); });
+    document.getElementById('btnRestart').addEventListener('click', resetRoadmap);
     document.getElementById('btnGoal').addEventListener('click', () => {
-      goalState = [
-        (Math.random() - 0.5) * Math.PI * 1.5,
-        Math.random() * Math.PI * 0.7,
-        (Math.random() - 0.5) * Math.PI
-      ];
+      goalState = sampleRandomConfigurationBox();
       resetRoadmap();
     });
 
@@ -428,7 +502,7 @@
 
     document.getElementById('chkGraph').addEventListener('change', rebuildGraph);
 
-    // Path Progress Animation
+    // Path Progress Slider
     document.getElementById('progSlider').addEventListener('input', (e) => {
       const val = parseFloat(e.target.value);
       if (solvedPath.length < 2) return;
@@ -450,19 +524,17 @@
       updateArmVisual(currentTheta);
     });
 
-    // Window Resize Handler
     window.addEventListener('resize', () => {
       camera.aspect = container.clientWidth / container.clientHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(container.clientWidth, container.clientHeight);
     });
 
-    // --- Init ---
+    // --- Start Application ---
     resetRoadmap();
     addVertices(100);
     updateArmVisual(startState);
 
-    // Render Loop
     function animate() {
       requestAnimationFrame(animate);
       renderer.render(scene, camera);
