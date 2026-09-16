@@ -96,7 +96,7 @@
 
   <div id="sidebar">
     <h1>3D PRM Motion Planning</h1>
-    <p class="desc">3-link robot arm navigating around box-shaped obstacles. Vertices are sampled randomly inside a 3D bounding box configuration space.</p>
+    <p class="desc">3-link robot arm navigating around box-shaped obstacles. Nodes are randomly distributed inside a 3D bounding box volume.</p>
 
     <div class="control-group">
       <label>Roadmap Sampling</label>
@@ -307,19 +307,49 @@
       return true;
     }
 
-    // --- Configuration Space Box Bounds ---
-    // Vertices sampled inside rectangular box domain
-    const CSPACE_BOX = {
-      min: [-Math.PI, 0, -Math.PI / 2],
-      max: [Math.PI, Math.PI, Math.PI / 2]
+    // --- Spatial Workspace Bounding Box Sampling ---
+    // Samples 3D points directly inside a rectangular box volume [X, Y, Z]
+    const WORKSPACE_BOX = {
+      min: new THREE.Vector3(-2.2, 0.2, -2.2),
+      max: new THREE.Vector3(2.2, 3.0, 2.2)
     };
 
-    function sampleRandomConfigurationBox() {
-      return [
-        CSPACE_BOX.min[0] + Math.random() * (CSPACE_BOX.max[0] - CSPACE_BOX.min[0]),
-        CSPACE_BOX.min[1] + Math.random() * (CSPACE_BOX.max[1] - CSPACE_BOX.min[1]),
-        CSPACE_BOX.min[2] + Math.random() * (CSPACE_BOX.max[2] - CSPACE_BOX.min[2])
-      ];
+    function sampleRandomNodeInBox() {
+      while (true) {
+        // Uniform random point within 3D spatial box
+        const targetPos = new THREE.Vector3(
+          WORKSPACE_BOX.min.x + Math.random() * (WORKSPACE_BOX.max.x - WORKSPACE_BOX.min.x),
+          WORKSPACE_BOX.min.y + Math.random() * (WORKSPACE_BOX.max.y - WORKSPACE_BOX.min.y),
+          WORKSPACE_BOX.min.z + Math.random() * (WORKSPACE_BOX.max.z - WORKSPACE_BOX.min.z)
+        );
+
+        // Calculate Analytical IK to derive corresponding angles (theta1, theta2, theta3)
+        const t1 = Math.atan2(targetPos.z, targetPos.x);
+        const baseOffset = new THREE.Vector3(0, 0.2, 0);
+        const relPos = targetPos.clone().sub(baseOffset);
+        const planarDist = Math.sqrt(relPos.x * relPos.x + relPos.z * relPos.z);
+        const dy = relPos.y;
+        const distToEE = Math.sqrt(planarDist * planarDist + dy * dy);
+
+        // Effective reach check
+        const maxReach = L1 + L2 + L3;
+        const minReach = Math.abs(L1 - (L2 + L3));
+        if (distToEE > maxReach || distToEE < minReach) continue;
+
+        // Angle solve
+        const phi = Math.atan2(dy, planarDist);
+        const L23 = L2 + L3; 
+        const cosAngle2 = (L1 * L1 + distToEE * distToEE - L23 * L23) / (2 * L1 * distToEE);
+        if (Math.abs(cosAngle2) > 1.0) continue;
+
+        const t2 = phi + Math.acos(Math.max(-1, Math.min(1, cosAngle2)));
+        const t3 = -0.3; // Link 2 & 3 relative alignment angle
+
+        const theta = [t1, t2, t3];
+        const eePos = getKinematics(theta)[3];
+
+        return { theta: theta, pos: eePos };
+      }
     }
 
     // --- PRM Roadmap State ---
@@ -334,9 +364,9 @@
     const pathLineGroup = new THREE.Group();
     scene.add(nodeSpheresGroup, graphLinesGroup, pathLineGroup);
 
-    // Shared sphere geometry & materials for high node visibility
-    const nodeSphereGeo = new THREE.SphereGeometry(0.06, 12, 12);
-    const startGoalSphereGeo = new THREE.SphereGeometry(0.1, 16, 16);
+    // Shared sphere geometry & materials
+    const nodeSphereGeo = new THREE.SphereGeometry(0.065, 12, 12);
+    const startGoalSphereGeo = new THREE.SphereGeometry(0.12, 16, 16);
     const matFreeNode = new THREE.MeshPhongMaterial({ color: 0x22c55e, emissive: 0x115e2e });
     const matCollisionNode = new THREE.MeshPhongMaterial({ color: 0xef4444, emissive: 0x7f1d1d });
     const matStartNode = new THREE.MeshPhongMaterial({ color: 0x3b82f6, emissive: 0x1d4ed8 });
@@ -348,18 +378,19 @@
 
     function resetRoadmap() {
       vertices = [
-        { theta: startState, free: isStateCollisionFree(startState), id: 0 },
-        { theta: goalState, free: isStateCollisionFree(goalState), id: 1 }
+        { theta: startState, pos: getKinematics(startState)[3], free: isStateCollisionFree(startState), id: 0 },
+        { theta: goalState, pos: getKinematics(goalState)[3], free: isStateCollisionFree(goalState), id: 1 }
       ];
       rebuildGraph();
     }
 
     function addVertices(count = 100) {
       for (let i = 0; i < count; i++) {
-        const theta = sampleRandomConfigurationBox();
+        const sampled = sampleRandomNodeInBox();
         vertices.push({
-          theta: theta,
-          free: isStateCollisionFree(theta),
+          theta: sampled.theta,
+          pos: sampled.pos,
+          free: isStateCollisionFree(sampled.theta),
           id: vertices.length
         });
       }
@@ -379,12 +410,10 @@
       const lineMat = new THREE.LineBasicMaterial({ color: 0x60a5fa, transparent: true, opacity: 0.35 });
       const linePositions = [];
 
-      // Re-render highly visible node spheres in 3D Workspace
+      // Render Node Spheres inside the Box Space
       if (showGraph) {
         for (let i = 0; i < vertices.length; i++) {
           const v = vertices[i];
-          const eePos = getKinematics(v.theta)[3];
-
           let mat = v.free ? matFreeNode : matCollisionNode;
           let geo = nodeSphereGeo;
 
@@ -392,7 +421,7 @@
           else if (i === 1) { mat = matGoalNode; geo = startGoalSphereGeo; }
 
           const sphereMesh = new THREE.Mesh(geo, mat);
-          sphereMesh.position.copy(eePos);
+          sphereMesh.position.copy(v.pos);
           nodeSpheresGroup.add(sphereMesh);
         }
       }
@@ -410,8 +439,8 @@
               graph[j].push({ node: i, weight: dist });
 
               if (showGraph) {
-                const pA = getKinematics(vertices[i].theta)[3];
-                const pB = getKinematics(vertices[j].theta)[3];
+                const pA = vertices[i].pos;
+                const pB = vertices[j].pos;
                 linePositions.push(pA.x, pA.y, pA.z, pB.x, pB.y, pB.z);
               }
             }
@@ -520,12 +549,14 @@
     document.getElementById('btnAdd').addEventListener('click', () => addVertices(100));
     document.getElementById('btnRestart').addEventListener('click', resetRoadmap);
     
-    // NEW GOAL: Keeps all existing sampled nodes, updates goal node (index 1), and recalculates graph
+    // New Goal: Append new target inside workspace box without wiping existing roadmap points
     document.getElementById('btnGoal').addEventListener('click', () => {
-      goalState = sampleRandomConfigurationBox();
+      const sampledGoal = sampleRandomNodeInBox();
+      goalState = sampledGoal.theta;
       if (vertices.length >= 2) {
         vertices[1] = {
           theta: goalState,
+          pos: sampledGoal.pos,
           free: isStateCollisionFree(goalState),
           id: 1
         };
