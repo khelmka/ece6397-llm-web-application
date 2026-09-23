@@ -11,15 +11,49 @@ Google Gemini was used to port `demonstrations.wolfram.com/ProbabilisticRoadmapM
 
 ## Failures
 
-The Google Gemini failed in converting convert the following items after 5 revisions. 
+The Google Gemini LLM failed in converting convert the following items after 5 revisions. 
 
-1. 
+1. The coordinate frame of the points is not displayed as a box with x, y, and z becoming ($\theta_1$), ($\theta_2$), ($\theta_3$), respectively.
+
+2. The uniformly randomly generated points are not disbursed evenly throughout the [0,2($\pi$)] coordinate frame. Rather they seems to be randomly placed on the surface of a sphere of unknown size.
+
+2. There are no coordinate axes present to indicate size, scale, or orientation.
+
+3. There are no controls for moving the origin and orientation (transform) of the robot within the world.
+
+3. The solution path "arm" object does not follow the solution path. Rather, it has a "sweeping" arc motion between the pairs of solution points, with minimal bending in the arm.
+
+4. Only one solution arm is present rather than two.
+
+5. There is a slider for the connection radius, which seems to be incorrectly tied to the number of points being generated. It does, however, correctly fail attemps when no valid solutions are present with the given connection radius.
+
+6. Only one viewport is present, which is used for both the robot workspace and visualizing the randomly placed points.
 
 ## Successes
 
 The Google Gemini LLM succeeded in converting the following after 5 revisions:
 
-1. 
+1. The application contains viewport gizmo controls for very easily and quickly manipulating the two obstacle spheres.
+
+2. The coordinate frame (as visible from the above gizmo controls) is right handed.
+
+2. The two obstacle spheres are about the same relative size as they were in the original Mathematica demo.
+
+2. The algorithm correctly avoids the obstacles and ensures that a new path is found (if possible) whenever the obstacles are moved.
+
+3. The "add 100 vertices" button is present and works as expected.
+
+4. The "restart" button is present and works as intended.
+
+5. The "New Random Goal" button works as expected, without resetting the initially randomly generated nodes.
+
+6. The path solving algorithm is rerun and new solution is automatically found whenever any of the above controls are used.
+
+7. The performance, both graphical and computational, far exceed that of the Mathematica demo. (eg. viewport movement is realtime)
+
+8. A control is presnt to hide/unhide the nodes and final solution path.
+
+9. A message is present that details the world statistics and current path length (node count).
 
 ## Revision History
 
